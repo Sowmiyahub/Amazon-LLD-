@@ -1,18 +1,20 @@
 class TypeFilter implements SearchFilter {
-    private final EntryType type;
+
+    private EntryType type;
 
     public TypeFilter(EntryType type) {
-        this.type = Objects.requireNonNull(type);
+        this.type = type;
     }
 
     @Override
     public boolean matches(Path path) {
-        if (type == EntryType.ANY) return true;
 
-        if (type == EntryType.FILE) {
-            return Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+        if (type == EntryType.ANY) {
+            return true;
+        } else if (type == EntryType.FILE) {
+            return Files.isRegularFile(path);
+        } else {
+            return Files.isDirectory(path);
         }
-
-        return Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
     }
 }
