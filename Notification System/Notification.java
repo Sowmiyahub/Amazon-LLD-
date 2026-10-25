@@ -1,29 +1,94 @@
-//The flow is: create notification → choose channel 
-// → send notification → return delivery status.
 
+/*
+========================================================
+DESIGN: NOTIFICATION SYSTEM
+========================================================
+
+1. NotificationService
+   - Main service/controller.
+   - Sends notifications through the selected channel.
+   - Uses the appropriate notification strategy.
+
+2. Notification
+   - Stores recipient, message, and notification type.
+
+3. NotificationChannel (Interface)
+   - Defines the common send() operation.
+   - Allows different notification delivery methods.
+
+4. EmailChannel
+   - Sends email notifications.
+
+5. SMSChannel
+   - Sends SMS notifications.
+
+6. PushChannel
+   - Sends push notifications.
+
+7. NotificationType (Enum)
+   - EMAIL, SMS, PUSH.
+
+========================================================
+CLASS RELATIONSHIPS
+========================================================
+
+NotificationService
+  └── selects a NotificationChannel
+
+NotificationChannel
+  ├── EmailChannel
+  ├── SMSChannel
+  └── PushChannel
+
+Notification
+  └── contains recipient, message, and type
+
+========================================================
+DESIGN PATTERN
+========================================================
+
+Strategy Pattern
+- Each channel implements NotificationChannel.
+- NotificationService selects the appropriate strategy.
+- New channels can be added without changing the
+  notification delivery logic.
+
+MAIN FLOW
+1. Create a notification.
+2. Select the notification type.
+3. Find the matching channel.
+4. Send the notification.
+
+========================================================
+*/
+
+// 1. Main service/controller
 import java.util.*;
 
-// 1. Main system: handles notification delivery
 class NotificationService {
-    private final Map<ChannelType, NotificationChannel> channels;
+    private final Map<NotificationType, NotificationChannel> channels =
+        new HashMap<>();
 
-    public NotificationService(List<NotificationChannel> channelList) {
-        channels = new HashMap<>();
-
-        for (NotificationChannel channel : channelList) {
-            channels.put(channel.getType(), channel);
-        }
+    public NotificationService() {
+        channels.put(NotificationType.EMAIL, new EmailChannel());
+        channels.put(NotificationType.SMS, new SMSChannel());
+        channels.put(NotificationType.PUSH, new PushChannel());
     }
 
-    public boolean sendNotification(Notification notification) {
+    public void sendNotification(Notification notification) {
         NotificationChannel channel =
-                channels.get(notification.getChannelType());
+            channels.get(notification.getType());
 
         if (channel == null) {
-            throw new IllegalArgumentException("Unsupported channel");
+            throw new IllegalArgumentException(
+                "Unsupported notification type"
+            );
         }
 
-        return channel.send(notification);
+        channel.send(
+            notification.getRecipient(),
+            notification.getMessage()
+        );
     }
 }
 
@@ -31,18 +96,21 @@ class NotificationService {
 class Notification {
     private final String recipient;
     private final String message;
-    private final ChannelType channelType;
+    private final NotificationType type;
 
-    public Notification(String recipient, String message,
-                        ChannelType channelType) {
+    public Notification(
+            String recipient, String message, NotificationType type) {
         if (recipient == null || recipient.trim().isEmpty()
-                || message == null || message.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid notification");
+                || message == null || message.trim().isEmpty()
+                || type == null) {
+            throw new IllegalArgumentException(
+                "Invalid notification details"
+            );
         }
 
         this.recipient = recipient;
         this.message = message;
-        this.channelType = Objects.requireNonNull(channelType);
+        this.type = type;
     }
 
     public String getRecipient() {
@@ -53,74 +121,49 @@ class Notification {
         return message;
     }
 
-    public ChannelType getChannelType() {
-        return channelType;
+    public NotificationType getType() {
+        return type;
     }
 }
 
-// 3. Common contract for delivery channels
+// 3. Notification channel interface
 interface NotificationChannel {
-    ChannelType getType();
-
-    boolean send(Notification notification);
+    void send(String recipient, String message);
 }
 
-// 4. Email implementation
+// 4. Email notification strategy
 class EmailChannel implements NotificationChannel {
-
     @Override
-    public ChannelType getType() {
-        return ChannelType.EMAIL;
-    }
-
-    @Override
-    public boolean send(Notification notification) {
-        System.out.println("Sending EMAIL to "
-                + notification.getRecipient()
-                + ": " + notification.getMessage());
-
-        return true; // Simulated delivery
+    public void send(String recipient, String message) {
+        System.out.println(
+            "Sending EMAIL to " + recipient + ": " + message
+        );
     }
 }
 
-// 5. SMS implementation
+// 5. SMS notification strategy
 class SMSChannel implements NotificationChannel {
-
     @Override
-    public ChannelType getType() {
-        return ChannelType.SMS;
-    }
-
-    @Override
-    public boolean send(Notification notification) {
-        System.out.println("Sending SMS to "
-                + notification.getRecipient()
-                + ": " + notification.getMessage());
-
-        return true; // Simulated delivery
+    public void send(String recipient, String message) {
+        System.out.println(
+            "Sending SMS to " + recipient + ": " + message
+        );
     }
 }
 
-// 6. Push notification implementation
+// 6. Push notification strategy
 class PushChannel implements NotificationChannel {
-
     @Override
-    public ChannelType getType() {
-        return ChannelType.PUSH;
-    }
-
-    @Override
-    public boolean send(Notification notification) {
-        System.out.println("Sending PUSH to "
-                + notification.getRecipient()
-                + ": " + notification.getMessage());
-
-        return true; // Simulated delivery
+    public void send(String recipient, String message) {
+        System.out.println(
+            "Sending PUSH notification to " + recipient
+                + ": " + message
+        );
     }
 }
 
-// 7. Supported channels
-enum ChannelType {
+// 7. Notification type
+enum NotificationType {
     EMAIL,
     SMS,
     PUSH
@@ -129,21 +172,28 @@ enum ChannelType {
 // 8. Example usage
 public class Main {
     public static void main(String[] args) {
-        NotificationService service = new NotificationService(
-                Arrays.asList(
-                    new EmailChannel(),
-                    new SMSChannel(),
-                    new PushChannel()
-                )
+        NotificationService service = new NotificationService();
+
+        Notification email = new Notification(
+            "user@example.com",
+            "Welcome to our application!",
+            NotificationType.EMAIL
         );
 
-        Notification notification = new Notification(
-                "user@example.com",
-                "Your order has been shipped!",
-                ChannelType.EMAIL
+        Notification sms = new Notification(
+            "+919876543210",
+            "Your OTP is 123456",
+            NotificationType.SMS
         );
 
-        boolean success = service.sendNotification(notification);
-        System.out.println("Sent successfully: " + success);
+        Notification push = new Notification(
+            "user123",
+            "You have a new message",
+            NotificationType.PUSH
+        );
+
+        service.sendNotification(email);
+        service.sendNotification(sms);
+        service.sendNotification(push);
     }
 }
