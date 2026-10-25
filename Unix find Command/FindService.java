@@ -1,49 +1,51 @@
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.*;
+
 public class FindService {
 
-    public List<Path> search(
-            Path root, List<SearchFilter> filters) throws IOException {
-
-        if (root == null || !Files.isDirectory(root)) {
-            throw new IllegalArgumentException("Invalid root directory");
-        }
+    public List<Path> search(Path root, List<SearchFilter> filters)
+            throws IOException {
 
         List<Path> results = new ArrayList<>();
-        List<SearchFilter> criteria = filters == null
-                ? Collections.emptyList()
-                : new ArrayList<>(filters);
 
-        Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+        if (root == null || !Files.isDirectory(root)) {
+            throw new IllegalArgumentException("Invalid directory");
+        }
 
-            private boolean matchesAll(Path path) {
-                for (SearchFilter filter : criteria) {
-                    if (!filter.matches(path)) {
-                        return false;
-                    }
-                }
-                return true;
-            }
+        if (filters == null) {
+            filters = Collections.emptyList();
+        }
 
-            @Override
-            public FileVisitResult preVisitDirectory(
-                    Path dir, BasicFileAttributes attrs) {
-                if (matchesAll(dir)) results.add(dir);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(
-                    Path file, BasicFileAttributes attrs) {
-                if (matchesAll(file)) results.add(file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFileFailed(
-                    Path file, IOException exc) {
-                return FileVisitResult.CONTINUE;
-            }
-        });
-
+        searchRecursively(root, filters, results);
         return results;
+    }
+
+    private void searchRecursively(
+            Path path, List<SearchFilter> filters, List<Path> results)
+            throws IOException {
+
+        boolean matches = true;
+
+        for (SearchFilter filter : filters) {
+            if (!filter.matches(path)) {
+                matches = false;
+                break;
+            }
+        }
+
+        if (matches) {
+            results.add(path);
+        }
+
+        if (Files.isDirectory(path)) {
+            try (DirectoryStream<Path> children =
+                         Files.newDirectoryStream(path)) {
+
+                for (Path child : children) {
+                    searchRecursively(child, filters, results);
+                }
+            }
+        }
     }
 }
