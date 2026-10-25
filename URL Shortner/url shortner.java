@@ -27,7 +27,6 @@ Class Design: URL Shortener
 Design Pattern: Separation of Responsibilities
 Data Structures: HashMap
 */
-
 import java.util.*;
 
 class URLShortenerService {
@@ -136,6 +135,16 @@ class ShortCodeGenerator {
         return code.reverse().toString();
     }
 }
+//MY CODE FOLLOWS "SEPARATION OF CONCERNS" 
+/**Suppose you want to switch between counter-based and random short-code generation.
+interface CodeGenerationStrategy {
+    String generateCode();
+}
+You could implement this interface with separate classes, 
+such as CounterBasedGenerator and RandomCodeGenerator, and inject the chosen 
+implementation into URLShortenerService.
+**/
+
 
 public class Main {
     public static void main(String[] args) {
